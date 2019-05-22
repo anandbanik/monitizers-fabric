@@ -136,7 +136,7 @@ func (t *WalxSupplierChaincode) updateFulfilment(stub shim.ChaincodeStubInterfac
 			return shim.Error("Cannot get insurance object")
 		}
 
-		var orderFulfilmentObj OrderFulfilment
+		//var orderFulfilmentObj OrderFulfilment
 
 	}
 	return shim.Success(nil)

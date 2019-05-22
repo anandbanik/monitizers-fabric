@@ -31,3 +31,6 @@ artifacts/dmv-banker.block
 artifacts/dmv-insurance.block
 artifacts/register.block
 artifacts/wmtx-customer.block
+ledger/docker-compose-walmart.com.yaml
+ledger/docker-compose-customer.yaml
+ledger/docker-compose-wmtx.yaml
