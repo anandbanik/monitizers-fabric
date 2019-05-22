@@ -386,6 +386,15 @@ function installDmvDealer() {
   done
 }
 
+function installCustomerWalx() {
+  org=$1
+
+  for chaincode_name in ${CHAINCODE_CUSTOMER_WALX}
+  do
+    installChaincode ${org} ${chaincode_name}
+  done
+}
+
 function installDmvBanker() {
   org=$1
 
@@ -739,15 +748,15 @@ elif [ "${MODE}" == "api-up" -a "${ORG}" == "" ]; then
 elif [ "${MODE}" == "install" -a "${ORG}" == "" ]; then
   for org in ${ORG1} ${ORG2}
   do
-    installDmvDealer ${org}
+    installCustomerWalx ${org}
   done
   
   
 elif [ "${MODE}" == "join" -a "${ORG}" == "" ]; then
-  createJoinInstantiateWarmUp ${ORG1} "${ORG1}-${ORG2}" ${CHAINCODE_DMV_DEALER} ${CHAINCODE_DMV_DEALER_INIT}
+  createJoinInstantiateWarmUp ${ORG1} "${ORG1}-${ORG2}" ${CHAINCODE_CUSTOMER_WALX} ${CHAINCODE_CUSTOMER_WALX_INIT}
   
   
-  joinWarmUp ${ORG2} "${ORG1}-${ORG2}" ${CHAINCODE_DMV_DEALER} ${CHAINCODE_DMV_DEALER_INIT}
+  joinWarmUp ${ORG2} "${ORG1}-${ORG2}" ${CHAINCODE_CUSTOMER_WALX} ${CHAINCODE_CUSTOMER_WALX_INIT}
   
 
 

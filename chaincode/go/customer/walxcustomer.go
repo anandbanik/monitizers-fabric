@@ -47,9 +47,115 @@ func (t *WalxCustomerChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Resp
 		return t.placeorder(stub, args)
 	} else if function == "query" {
 		return t.query(stub, args)
+	} else if function == "acceptorder" {
+		return t.acceptorder(stub, args)
+	} else if function == "receivedorder" {
+		return t.receivedorder(stub, args)
 	}
 
 	return pb.Response{Status: 403, Message: "unknown function name"}
+}
+
+func (t *WalxCustomerChaincode) acceptorder(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	creatorBytes, err := stub.GetCreator()
+	if err != nil {
+		return shim.Error("cannot get creator")
+	}
+
+	user, org := getCreator(creatorBytes)
+
+	logger.Debug("User: " + user)
+
+	if org == "wmtx" {
+
+		if len(args) != 2 {
+			return pb.Response{Status: 403, Message: "incorrect number of arguments"}
+		}
+
+		poNumber := args[0]
+
+		purchaseOrderBytes, err := stub.GetState(poNumber)
+
+		if err != nil {
+			return shim.Error("cannot get state")
+		} else if purchaseOrderBytes == nil {
+			return shim.Error("Cannot get po object")
+		}
+
+		var purchaseOrderObj PurchaseOrder
+		errUnmarshal := json.Unmarshal([]byte(purchaseOrderBytes), &purchaseOrderObj)
+		if errUnmarshal != nil {
+			return shim.Error("Cannot unmarshal Negotiate Object")
+		}
+
+		logger.Debug("Negotiate Object: " + string(purchaseOrderBytes))
+
+		purchaseOrderObj.Status = args[1]
+
+		purchaseOrderObjBytes, _ := json.Marshal(purchaseOrderObj)
+
+		errNegotiate := stub.PutState(poNumber, purchaseOrderObjBytes)
+		if errNegotiate != nil {
+			return shim.Error("Error updating PurchaseOrder Object: " + err.Error())
+		}
+
+		logger.Info("Update sucessfull")
+		return shim.Success(nil)
+	}
+	return shim.Error("Org is not WmtX")
+
+}
+
+func (t *WalxCustomerChaincode) receivedorder(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	creatorBytes, err := stub.GetCreator()
+	if err != nil {
+		return shim.Error("cannot get creator")
+	}
+
+	user, org := getCreator(creatorBytes)
+
+	logger.Debug("User: " + user)
+
+	if org == "customer" {
+
+		if len(args) != 2 {
+			return pb.Response{Status: 403, Message: "incorrect number of arguments"}
+		}
+
+		poNumber := args[0]
+
+		purchaseOrderBytes, err := stub.GetState(poNumber)
+
+		if err != nil {
+			return shim.Error("cannot get state")
+		} else if purchaseOrderBytes == nil {
+			return shim.Error("Cannot get po object")
+		}
+
+		var purchaseOrderObj PurchaseOrder
+		errUnmarshal := json.Unmarshal([]byte(purchaseOrderBytes), &purchaseOrderObj)
+		if errUnmarshal != nil {
+			return shim.Error("Cannot unmarshal Negotiate Object")
+		}
+
+		logger.Debug("Negotiate Object: " + string(purchaseOrderBytes))
+
+		purchaseOrderObj.Status = args[1]
+
+		purchaseOrderObjBytes, _ := json.Marshal(purchaseOrderObj)
+
+		errNegotiate := stub.PutState(poNumber, purchaseOrderObjBytes)
+		if errNegotiate != nil {
+			return shim.Error("Error updating PurchaseOrder Object: " + err.Error())
+		}
+
+		logger.Info("Update sucessfull")
+		return shim.Success(nil)
+	}
+	return shim.Error("Org is not Customer")
+
 }
 
 func (t *WalxCustomerChaincode) placeorder(stub shim.ChaincodeStubInterface, args []string) pb.Response {
@@ -65,7 +171,7 @@ func (t *WalxCustomerChaincode) placeorder(stub shim.ChaincodeStubInterface, arg
 		return shim.Error("cannot get Org")
 	} else if org == "customer" && user != "" {
 
-		if len(args) < 6 {
+		if len(args) < 7 {
 			return pb.Response{Status: 403, Message: "incorrect number of arguments"}
 		}
 
@@ -96,6 +202,11 @@ func (t *WalxCustomerChaincode) placeorder(stub shim.ChaincodeStubInterface, arg
 			return shim.Error("Invalid Sustainability factor, expecting a integer value")
 		}
 
+		cost, err := strconv.Atoi(args[6])
+		if err != nil {
+			return shim.Error("Invalid Cost, expecting a integer value")
+		}
+
 		purchaseOrderObj := &PurchaseOrder{
 			PoNumber:       args[0],
 			PoDate:         poDate,
@@ -104,6 +215,7 @@ func (t *WalxCustomerChaincode) placeorder(stub shim.ChaincodeStubInterface, arg
 			Quality:        quality,
 			Time:           timeFoctor,
 			Sustainability: sustainability,
+			Cost:           cost,
 			Status:         "Applied"}
 
 		jsonPurchaseOrderObj, err := json.Marshal(purchaseOrderObj)
@@ -122,6 +234,10 @@ func (t *WalxCustomerChaincode) placeorder(stub shim.ChaincodeStubInterface, arg
 		}
 
 		logger.Debug("PO Object added")
+
+	} else {
+		logger.Warning("User is null or Org is not customer")
+		return shim.Error("User is null or Org is not customer")
 
 	}
 	return shim.Success(nil)
@@ -143,7 +259,7 @@ func (t *WalxCustomerChaincode) query(stub shim.ChaincodeStubInterface, args []s
 
 	if org == "" {
 		logger.Debug("Org is null")
-	} else if (org == "walx" || org == "customer") && user != "" {
+	} else if (org == "wmtx" || org == "customer") && user != "" {
 
 		if len(args) != 1 {
 			return pb.Response{Status: 403, Message: "incorrect number of arguments"}
@@ -156,19 +272,8 @@ func (t *WalxCustomerChaincode) query(stub shim.ChaincodeStubInterface, args []s
 			return shim.Error("cannot get state")
 		}
 		return shim.Success(bytes)
-	} else if org == "banker" {
-
-		if len(args) != 2 {
-			return pb.Response{Status: 403, Message: "incorrect number of arguments"}
-		}
-
-		key := args[0] + "@" + args[1]
-
-		bytes, err := stub.GetState(key)
-		if err != nil {
-			return shim.Error("cannot get state")
-		}
-		return shim.Success(bytes)
+	} else {
+		return shim.Error("Check Org or user is null")
 	}
 
 	return shim.Success(nil)
